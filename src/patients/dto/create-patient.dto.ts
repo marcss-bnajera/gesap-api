@@ -1,7 +1,7 @@
 // =============================================
 // DTO para crear un Paciente
-// Validaciones campo por campo segun reglas de Guatemala
-// DPI = 13 digitos, telefono = 8 digitos
+// Nombre completo: hasta 3 nombres + 2 apellidos
+// DPI = 13 digitos, telefono = 8 digitos (Guatemala)
 // =============================================
 
 import {
@@ -9,7 +9,6 @@ import {
     MinLength, MaxLength, Matches, Length,
 } from 'class-validator';
 
-// Enums que coinciden con los del schema de Prisma
 export enum SexEnum {
     MASCULINO = 'MASCULINO',
     FEMENINO = 'FEMENINO',
@@ -33,19 +32,40 @@ export class CreatePatientDto {
     @Matches(/^\d{13}$/, { message: 'El DPI solo puede contener numeros (13 digitos)' })
     dpi: string;
 
-    @IsNotEmpty({ message: 'El nombre es obligatorio' })
-    @IsString({ message: 'El nombre debe ser texto' })
-    @MinLength(2, { message: 'El nombre debe tener minimo 2 caracteres' })
-    @MaxLength(50, { message: 'El nombre no puede exceder 50 caracteres' })
-    @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: 'El nombre solo puede contener letras y espacios' })
+    @IsNotEmpty({ message: 'El primer nombre es obligatorio' })
+    @IsString({ message: 'El primer nombre debe ser texto' })
+    @MinLength(2, { message: 'El primer nombre debe tener minimo 2 caracteres' })
+    @MaxLength(50, { message: 'El primer nombre no puede exceder 50 caracteres' })
+    @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: 'El primer nombre solo puede contener letras' })
     firstName: string;
 
-    @IsNotEmpty({ message: 'El apellido es obligatorio' })
-    @IsString({ message: 'El apellido debe ser texto' })
-    @MinLength(2, { message: 'El apellido debe tener minimo 2 caracteres' })
-    @MaxLength(50, { message: 'El apellido no puede exceder 50 caracteres' })
-    @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: 'El apellido solo puede contener letras y espacios' })
-    lastName: string;
+    @IsOptional()
+    @IsString({ message: 'El segundo nombre debe ser texto' })
+    @MinLength(2, { message: 'El segundo nombre debe tener minimo 2 caracteres' })
+    @MaxLength(50, { message: 'El segundo nombre no puede exceder 50 caracteres' })
+    @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: 'El segundo nombre solo puede contener letras' })
+    secondName?: string;
+
+    @IsOptional()
+    @IsString({ message: 'El tercer nombre debe ser texto' })
+    @MinLength(2, { message: 'El tercer nombre debe tener minimo 2 caracteres' })
+    @MaxLength(50, { message: 'El tercer nombre no puede exceder 50 caracteres' })
+    @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: 'El tercer nombre solo puede contener letras' })
+    thirdName?: string;
+
+    @IsNotEmpty({ message: 'El primer apellido es obligatorio' })
+    @IsString({ message: 'El primer apellido debe ser texto' })
+    @MinLength(2, { message: 'El primer apellido debe tener minimo 2 caracteres' })
+    @MaxLength(50, { message: 'El primer apellido no puede exceder 50 caracteres' })
+    @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: 'El primer apellido solo puede contener letras' })
+    firstLastName: string;
+
+    @IsNotEmpty({ message: 'El segundo apellido es obligatorio' })
+    @IsString({ message: 'El segundo apellido debe ser texto' })
+    @MinLength(2, { message: 'El segundo apellido debe tener minimo 2 caracteres' })
+    @MaxLength(50, { message: 'El segundo apellido no puede exceder 50 caracteres' })
+    @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: 'El segundo apellido solo puede contener letras' })
+    secondLastName: string;
 
     @IsNotEmpty({ message: 'La fecha de nacimiento es obligatoria' })
     @IsDateString({}, { message: 'La fecha debe tener formato YYYY-MM-DD' })
@@ -57,7 +77,7 @@ export class CreatePatientDto {
 
     @IsOptional()
     @IsEnum(BloodTypeEnum, {
-        message: 'El tipo de sangre debe ser: A_POSITIVO, A_NEGATIVO, B_POSITIVO, B_NEGATIVO, AB_POSITIVO, AB_NEGATIVO, O_POSITIVO, O_NEGATIVO',
+        message: 'Tipo de sangre: A_POSITIVO, A_NEGATIVO, B_POSITIVO, B_NEGATIVO, AB_POSITIVO, AB_NEGATIVO, O_POSITIVO, O_NEGATIVO',
     })
     bloodType?: BloodTypeEnum;
 
@@ -71,15 +91,4 @@ export class CreatePatientDto {
     @IsString({ message: 'La direccion debe ser texto' })
     @MaxLength(255, { message: 'La direccion no puede exceder 255 caracteres' })
     address?: string;
-
-    @IsOptional()
-    @IsString({ message: 'El contacto de emergencia debe ser texto' })
-    @MaxLength(100, { message: 'El contacto de emergencia no puede exceder 100 caracteres' })
-    emergencyContact?: string;
-
-    @IsOptional()
-    @IsString({ message: 'El telefono de emergencia debe ser texto' })
-    @Length(8, 8, { message: 'El telefono de emergencia debe tener 8 digitos' })
-    @Matches(/^\d{8}$/, { message: 'El telefono de emergencia solo puede contener numeros' })
-    emergencyPhone?: string;
 }

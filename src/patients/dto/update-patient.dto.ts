@@ -11,25 +11,46 @@ import { SexEnum, BloodTypeEnum } from './create-patient.dto';
 
 export class UpdatePatientDto {
     @IsOptional()
-    @IsString({ message: 'El nombre debe ser texto' })
-    @MinLength(2, { message: 'El nombre debe tener minimo 2 caracteres' })
-    @MaxLength(50, { message: 'El nombre no puede exceder 50 caracteres' })
-    @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: 'El nombre solo puede contener letras' })
+    @IsString({ message: 'El primer nombre debe ser texto' })
+    @MinLength(2, { message: 'Minimo 2 caracteres' })
+    @MaxLength(50, { message: 'Maximo 50 caracteres' })
+    @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: 'Solo letras' })
     firstName?: string;
 
     @IsOptional()
-    @IsString({ message: 'El apellido debe ser texto' })
-    @MinLength(2, { message: 'El apellido debe tener minimo 2 caracteres' })
-    @MaxLength(50, { message: 'El apellido no puede exceder 50 caracteres' })
-    @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: 'El apellido solo puede contener letras' })
-    lastName?: string;
+    @IsString()
+    @MinLength(2)
+    @MaxLength(50)
+    @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: 'Solo letras' })
+    secondName?: string;
 
     @IsOptional()
-    @IsDateString({}, { message: 'La fecha debe tener formato YYYY-MM-DD' })
+    @IsString()
+    @MinLength(2)
+    @MaxLength(50)
+    @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: 'Solo letras' })
+    thirdName?: string;
+
+    @IsOptional()
+    @IsString()
+    @MinLength(2)
+    @MaxLength(50)
+    @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: 'Solo letras' })
+    firstLastName?: string;
+
+    @IsOptional()
+    @IsString()
+    @MinLength(2)
+    @MaxLength(50)
+    @Matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: 'Solo letras' })
+    secondLastName?: string;
+
+    @IsOptional()
+    @IsDateString({}, { message: 'Formato: YYYY-MM-DD' })
     birthDate?: string;
 
     @IsOptional()
-    @IsEnum(SexEnum, { message: 'El sexo debe ser MASCULINO o FEMENINO' })
+    @IsEnum(SexEnum, { message: 'Debe ser MASCULINO o FEMENINO' })
     sex?: SexEnum;
 
     @IsOptional()
@@ -39,22 +60,11 @@ export class UpdatePatientDto {
     @IsOptional()
     @IsString()
     @Length(8, 8, { message: 'El telefono debe tener 8 digitos' })
-    @Matches(/^\d{8}$/, { message: 'El telefono solo puede contener numeros' })
+    @Matches(/^\d{8}$/)
     phone?: string;
 
     @IsOptional()
     @IsString()
-    @MaxLength(255, { message: 'La direccion no puede exceder 255 caracteres' })
+    @MaxLength(255)
     address?: string;
-
-    @IsOptional()
-    @IsString()
-    @MaxLength(100, { message: 'El contacto de emergencia no puede exceder 100 caracteres' })
-    emergencyContact?: string;
-
-    @IsOptional()
-    @IsString()
-    @Length(8, 8, { message: 'El telefono de emergencia debe tener 8 digitos' })
-    @Matches(/^\d{8}$/)
-    emergencyPhone?: string;
 }
