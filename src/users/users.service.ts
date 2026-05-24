@@ -1,23 +1,24 @@
 // =============================================
 // UsersService
 // CRUD de usuarios + toggle active + cambiar contrasena
+// Filtrado por hospital: AUDITOR ve solo su hospital, SUPER_AUDITOR ve todo
 // =============================================
 
 import {
-    Injectable, NotFoundException, ConflictException, BadRequestException,
+    Injectable, NotFoundException, ConflictException,
+    BadRequestException, ForbiddenException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto, ChangePasswordDto } from './dto/update-user.dto';
+import { getHospitalScope, HospitalScopedUser } from '../common/helpers/hospital-scope.helper';
 
 @Injectable()
 export class UsersService {
     constructor(private prisma: PrismaService) { }
 
-    // Crear usuario nuevo
-    async create(createUserDto: CreateUserDto) {
-        // Verificar que el email no este registrado
+    async create(createUserDto: CreateUserDto, currentUser: HospitalScopedUser) {
         const exists = await this.prisma.user.findUnique({
             where: { email: createUserDto.email },
         });
@@ -26,7 +27,6 @@ export class UsersService {
             throw new ConflictException('Ya existe un usuario con ese correo');
         }
 
-        // Verificar que el rol exista
         const role = await this.prisma.role.findUnique({
             where: { id: createUserDto.roleId },
         });
@@ -35,84 +35,101 @@ export class UsersService {
             throw new NotFoundException(`No existe el rol con ID ${createUserDto.roleId}`);
         }
 
-        // Encriptar la contrasena con bcrypt (10 rondas de salt)
+        // AUDITOR solo puede crear usuarios en su propio hospital
+        const hospitalId = currentUser.roleName === 'SUPER_AUDITOR'
+            ? createUserDto.hospitalId
+            : currentUser.hospitalId ?? undefined;
+
         const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
         const user = await this.prisma.user.create({
             data: {
                 ...createUserDto,
                 password: hashedPassword,
+                hospitalId,
             },
-            include: { role: true },
+            include: { role: true, hospital: { select: { id: true, code: true, name: true } } },
         });
 
-        // No retornar la contrasena
         const { password, ...result } = user;
         return result;
     }
 
-    // Listar todos los usuarios
-    async findAll() {
+    async findAll(currentUser: HospitalScopedUser) {
+        const scope = getHospitalScope(currentUser);
+
         const users = await this.prisma.user.findMany({
-            include: { role: { select: { id: true, name: true } } },
+            where: scope,
+            include: {
+                role: { select: { id: true, name: true } },
+                hospital: { select: { id: true, code: true, name: true } },
+            },
             orderBy: { id: 'asc' },
         });
 
-        // Quitar contrasena de cada usuario
         return users.map(({ password, ...user }) => user);
     }
 
-    // Buscar usuario por ID
-    async findOne(id: number) {
-        const user = await this.prisma.user.findUnique({
-            where: { id },
-            include: { role: true },
+    async findOne(id: number, currentUser: HospitalScopedUser) {
+        const scope = getHospitalScope(currentUser);
+
+        const user = await this.prisma.user.findFirst({
+            where: { id, ...scope },
+            include: {
+                role: true,
+                hospital: { select: { id: true, code: true, name: true } },
+            },
         });
 
         if (!user) {
-            throw new NotFoundException(`No se encontro el usuario con ID ${id}`);
+            throw new NotFoundException(`No se encontró el usuario con ID ${id}`);
         }
 
         const { password, ...result } = user;
         return result;
     }
 
-    // Actualizar datos del usuario
-    async update(id: number, updateUserDto: UpdateUserDto) {
-        await this.findOne(id);
+    async update(id: number, updateUserDto: UpdateUserDto, currentUser: HospitalScopedUser) {
+        await this.findOne(id, currentUser);
 
-        // Si cambian el email, verificar que no este en uso
         if (updateUserDto.email) {
             const emailInUse = await this.prisma.user.findFirst({
                 where: { email: updateUserDto.email, NOT: { id } },
             });
 
             if (emailInUse) {
-                throw new ConflictException('Ese correo ya esta registrado por otro usuario');
+                throw new ConflictException('Ese correo ya está registrado por otro usuario');
+            }
+        }
+
+        // AUDITOR no puede mover usuarios a otro hospital
+        if (currentUser.roleName !== 'SUPER_AUDITOR' && updateUserDto.hospitalId !== undefined) {
+            if (updateUserDto.hospitalId !== currentUser.hospitalId) {
+                throw new ForbiddenException('No puede reasignar usuarios a otro hospital');
             }
         }
 
         const user = await this.prisma.user.update({
             where: { id },
             data: updateUserDto,
-            include: { role: true },
+            include: {
+                role: true,
+                hospital: { select: { id: true, code: true, name: true } },
+            },
         });
 
         const { password, ...result } = user;
         return result;
     }
 
-    // Activar o desactivar un usuario
-    async toggleActive(id: number) {
-        const user = await this.prisma.user.findUnique({ where: { id } });
+    async toggleActive(id: number, currentUser: HospitalScopedUser) {
+        await this.findOne(id, currentUser);
 
-        if (!user) {
-            throw new NotFoundException(`No se encontro el usuario con ID ${id}`);
-        }
+        const user = await this.prisma.user.findUnique({ where: { id } });
 
         const updated = await this.prisma.user.update({
             where: { id },
-            data: { isActive: !user.isActive },
+            data: { isActive: !user!.isActive },
         });
 
         return {
@@ -121,22 +138,19 @@ export class UsersService {
         };
     }
 
-    // Cambiar contrasena del usuario
     async changePassword(id: number, changePasswordDto: ChangePasswordDto) {
         const user = await this.prisma.user.findUnique({ where: { id } });
 
         if (!user) {
-            throw new NotFoundException(`No se encontro el usuario con ID ${id}`);
+            throw new NotFoundException(`No se encontró el usuario con ID ${id}`);
         }
 
-        // Verificar contrasena actual
         const isValid = await bcrypt.compare(changePasswordDto.currentPassword, user.password);
 
         if (!isValid) {
-            throw new BadRequestException('La contrasena actual es incorrecta');
+            throw new BadRequestException('La contraseña actual es incorrecta');
         }
 
-        // Encriptar y guardar la nueva
         const hashedPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
 
         await this.prisma.user.update({
@@ -144,6 +158,6 @@ export class UsersService {
             data: { password: hashedPassword },
         });
 
-        return { message: 'Contrasena actualizada correctamente' };
+        return { message: 'Contraseña actualizada correctamente' };
     }
 }

@@ -13,6 +13,30 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ---- HOSPITALES DEL SISTEMA ----
+// Cada establecimiento de salud del MSPAS es una entidad independiente
+model Hospital {
+  id           Int           @id @default(autoincrement())
+  code         String        @unique @db.VarChar(10)
+  name         String        @db.VarChar(200)
+  level        HospitalLevel
+  department   String        @db.VarChar(50)
+  municipality String        @db.VarChar(100)
+  address      String?       @db.VarChar(255)
+  phone        String?       @db.VarChar(20)
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  users                User[]
+  emergencies          Emergency[]
+  unidentifiedPatients UnidentifiedPatient[]
+  medicalRecords       MedicalRecord[]
+  treatments           Treatment[]
+
+  @@map("hospitals")
+}
+
 // ---- ROLES DEL SISTEMA ----
 model Role {
   id          Int      @id @default(autoincrement())
@@ -29,19 +53,26 @@ model Role {
 
 // ---- USUARIOS DEL SISTEMA ----
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique @db.VarChar(100)
-  password  String   @db.VarChar(255)
-  firstName String   @map("first_name") @db.VarChar(50)
-  lastName  String   @map("last_name") @db.VarChar(50)
-  roleId    Int      @map("role_id")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                 Int                 @id @default(autoincrement())
+  email              String              @unique @db.VarChar(100)
+  password           String              @db.VarChar(255)
+  firstName          String              @map("first_name") @db.VarChar(50)
+  lastName           String              @map("last_name") @db.VarChar(50)
+  roleId             Int                 @map("role_id")
+  hospitalId         Int?                @map("hospital_id")
+  fleetId            String?             @map("fleet_id") @db.VarChar(50)
+  availabilityStatus AvailabilityStatus? @map("availability_status")
+  isActive           Boolean             @default(true) @map("is_active")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
 
-  role           Role            @relation(fields: [roleId], references: [id])
-  medicalRecords MedicalRecord[]
-  treatments     Treatment[]
+  role                        Role                  @relation(fields: [roleId], references: [id])
+  hospital                    Hospital?             @relation(fields: [hospitalId], references: [id])
+  medicalRecords              MedicalRecord[]
+  treatments                  Treatment[]
+  emergenciesCreated          Emergency[]           @relation("EmergencyCreator")
+  emergenciesAssigned         Emergency[]           @relation("EmergencyAssignee")
+  unidentifiedPatientsCreated UnidentifiedPatient[]
 
   @@map("users")
 }
@@ -49,26 +80,28 @@ model User {
 // ---- PACIENTES ----
 // Nombre completo segun formato guatemalteco: hasta 3 nombres y 2 apellidos
 model Patient {
-  id             Int       @id @default(autoincrement())
-  dpi            String    @unique @db.VarChar(13)
-  firstName      String    @map("first_name") @db.VarChar(50)
-  secondName     String?   @map("second_name") @db.VarChar(50)
-  thirdName      String?   @map("third_name") @db.VarChar(50)
-  firstLastName  String    @map("first_last_name") @db.VarChar(50)
-  secondLastName String    @map("second_last_name") @db.VarChar(50)
-  birthDate      DateTime  @map("birth_date") @db.Date
+  id             Int        @id @default(autoincrement())
+  dpi            String     @unique @db.VarChar(13)
+  firstName      String     @map("first_name") @db.VarChar(50)
+  secondName     String?    @map("second_name") @db.VarChar(50)
+  thirdName      String?    @map("third_name") @db.VarChar(50)
+  firstLastName  String     @map("first_last_name") @db.VarChar(50)
+  secondLastName String     @map("second_last_name") @db.VarChar(50)
+  birthDate      DateTime   @map("birth_date") @db.Date
   sex            Sex
   bloodType      BloodType? @map("blood_type")
-  phone          String?   @db.VarChar(8)
-  address        String?   @db.VarChar(255)
-  isActive       Boolean   @default(true) @map("is_active")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  phone          String?    @db.VarChar(8)
+  address        String?    @db.VarChar(255)
+  isActive       Boolean    @default(true) @map("is_active")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
 
-  allergies         Allergy[]
-  medicalRecords    MedicalRecord[]
-  treatments        Treatment[]
-  emergencyContacts EmergencyContact[]
+  allergies                  Allergy[]
+  medicalRecords             MedicalRecord[]
+  treatments                 Treatment[]
+  emergencyContacts          EmergencyContact[]
+  emergencies                Emergency[]
+  unidentifiedPatientRecords UnidentifiedPatient[]
 
   @@map("patients")
 }
@@ -76,14 +109,14 @@ model Patient {
 // ---- CONTACTOS DE EMERGENCIA ----
 // Cada paciente puede tener hasta 5 contactos de emergencia
 model EmergencyContact {
-  id          Int      @id @default(autoincrement())
-  patientId   Int      @map("patient_id")
-  fullName    String   @map("full_name") @db.VarChar(100)
-  phone       String   @db.VarChar(8)
-  relationship String? @db.VarChar(50)
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id           Int      @id @default(autoincrement())
+  patientId    Int      @map("patient_id")
+  fullName     String   @map("full_name") @db.VarChar(100)
+  phone        String   @db.VarChar(8)
+  relationship String?  @db.VarChar(50)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   patient Patient @relation(fields: [patientId], references: [id])
 
@@ -92,15 +125,15 @@ model EmergencyContact {
 
 // ---- ALERGIAS ----
 model Allergy {
-  id          Int             @id @default(autoincrement())
-  patientId   Int             @map("patient_id")
-  substance   String          @db.VarChar(100)
-  type        AllergyType
-  severity    AllergySeverity
-  notes       String?         @db.VarChar(255)
-  isActive    Boolean         @default(true) @map("is_active")
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
+  id        Int             @id @default(autoincrement())
+  patientId Int             @map("patient_id")
+  substance String          @db.VarChar(100)
+  type      AllergyType
+  severity  AllergySeverity
+  notes     String?         @db.VarChar(255)
+  isActive  Boolean         @default(true) @map("is_active")
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
 
   patient Patient @relation(fields: [patientId], references: [id])
 
@@ -109,62 +142,122 @@ model Allergy {
 
 // ---- EXPEDIENTE MEDICO ----
 model MedicalRecord {
-  id          Int      @id @default(autoincrement())
-  patientId   Int      @map("patient_id")
-  doctorId    Int      @map("doctor_id")
-  diagnosis   String   @db.Text
-  notes       String?  @db.Text
-  vitalSigns  Json?    @map("vital_signs")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id         Int      @id @default(autoincrement())
+  patientId  Int      @map("patient_id")
+  doctorId   Int      @map("doctor_id")
+  hospitalId Int?     @map("hospital_id")
+  diagnosis  String   @db.Text
+  notes      String?  @db.Text
+  vitalSigns Json?    @map("vital_signs")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-  patient Patient @relation(fields: [patientId], references: [id])
-  doctor  User    @relation(fields: [doctorId], references: [id])
+  patient  Patient   @relation(fields: [patientId], references: [id])
+  doctor   User      @relation(fields: [doctorId], references: [id])
+  hospital Hospital? @relation(fields: [hospitalId], references: [id])
 
   @@map("medical_records")
 }
 
 // ---- TRATAMIENTOS ----
 model Treatment {
-  id          Int      @id @default(autoincrement())
-  patientId   Int      @map("patient_id")
-  doctorId    Int      @map("doctor_id")
-  name        String   @db.VarChar(150)
-  description String?  @db.Text
-  startDate   DateTime @map("start_date") @db.Date
+  id          Int       @id @default(autoincrement())
+  patientId   Int       @map("patient_id")
+  doctorId    Int       @map("doctor_id")
+  hospitalId  Int?      @map("hospital_id")
+  name        String    @db.VarChar(150)
+  description String?   @db.Text
+  startDate   DateTime  @map("start_date") @db.Date
   endDate     DateTime? @map("end_date") @db.Date
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  patient Patient @relation(fields: [patientId], references: [id])
-  doctor  User    @relation(fields: [doctorId], references: [id])
+  patient  Patient   @relation(fields: [patientId], references: [id])
+  doctor   User      @relation(fields: [doctorId], references: [id])
+  hospital Hospital? @relation(fields: [hospitalId], references: [id])
 
   @@map("treatments")
 }
 
 // ---- CUENTAS DE PACIENTES ----
 model PatientAccount {
-  id          Int      @id @default(autoincrement())
-  dpi         String   @unique @db.VarChar(13)
-  email       String   @unique @db.VarChar(100)
-  password    String   @db.VarChar(255)
-  status      AccountStatus @default(PENDING)
-  approvedBy  Int?     @map("approved_by")
-  approvedAt  DateTime? @map("approved_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id         Int           @id @default(autoincrement())
+  dpi        String        @unique @db.VarChar(13)
+  email      String        @unique @db.VarChar(100)
+  password   String        @db.VarChar(255)
+  status     AccountStatus @default(PENDING)
+  approvedBy Int?          @map("approved_by")
+  approvedAt DateTime?     @map("approved_at")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
 
   @@map("patient_accounts")
 }
+
+// ---- PACIENTES NO IDENTIFICADOS ----
+// Para emergencias donde el paciente no puede o no quiere identificarse
+model UnidentifiedPatient {
+  id                  Int      @id @default(autoincrement())
+  estimatedAge        Int?     @map("estimated_age")
+  sex                 Sex
+  hatDescription      String?  @map("hat_description") @db.VarChar(255)
+  headFaceDescription String?  @map("head_face_description") @db.VarChar(255)
+  shirtDescription    String?  @map("shirt_description") @db.VarChar(255)
+  jacketDescription   String?  @map("jacket_description") @db.VarChar(255)
+  pantsDescription    String?  @map("pants_description") @db.VarChar(255)
+  shoesDescription    String?  @map("shoes_description") @db.VarChar(255)
+  additionalNotes     String?  @map("additional_notes") @db.Text
+  hospitalId          Int      @map("hospital_id")
+  transferDate        DateTime @map("transfer_date")
+  createdById         Int      @map("created_by_id")
+  identifiedPatientId Int?     @map("identified_patient_id")
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  hospital          Hospital    @relation(fields: [hospitalId], references: [id])
+  createdBy         User        @relation(fields: [createdById], references: [id])
+  identifiedPatient Patient?    @relation(fields: [identifiedPatientId], references: [id])
+  emergencies       Emergency[]
+
+  @@map("unidentified_patients")
+}
+
+// ---- EMERGENCIAS ----
+// Una emergencia vincula a un paciente (identificado o no) con un hospital destino
+model Emergency {
+  id                    Int             @id @default(autoincrement())
+  patientId             Int?            @map("patient_id")
+  unidentifiedPatientId Int?            @map("unidentified_patient_id")
+  createdById           Int             @map("created_by_id")
+  assignedToId          Int?            @map("assigned_to_id")
+  hospitalDestinationId Int             @map("hospital_destination_id")
+  status                EmergencyStatus @default(PENDING)
+  primaryAssessment     Json?           @map("primary_assessment")
+  secondaryAssessment   Json?           @map("secondary_assessment")
+  completionRecord      Json?           @map("completion_record")
+  notes                 String?         @db.Text
+  transferDate          DateTime?       @map("transfer_date")
+  createdAt             DateTime        @default(now()) @map("created_at")
+  updatedAt             DateTime        @updatedAt @map("updated_at")
+
+  patient             Patient?             @relation(fields: [patientId], references: [id])
+  unidentifiedPatient UnidentifiedPatient? @relation(fields: [unidentifiedPatientId], references: [id])
+  createdBy           User                 @relation("EmergencyCreator", fields: [createdById], references: [id])
+  assignedTo          User?                @relation("EmergencyAssignee", fields: [assignedToId], references: [id])
+  hospitalDestination Hospital             @relation(fields: [hospitalDestinationId], references: [id])
+
+  @@map("emergencies")
+}
+
+// ---- ENUMS ----
 
 enum AccountStatus {
   PENDING
   APPROVED
   REJECTED
 }
-
-// ---- ENUMS ----
 
 enum Sex {
   MASCULINO
@@ -193,4 +286,27 @@ enum AllergySeverity {
   MILD
   MODERATE
   SEVERE
+}
+
+enum HospitalLevel {
+  REFERENCIA_NACIONAL
+  ESPECIALIZADO
+  REGIONAL
+  DEPARTAMENTAL
+  DISTRITAL
+  CENTRO_SALUD_A
+  CENTRO_SALUD_B
+  CAP
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+enum EmergencyStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
 }

@@ -1,10 +1,5 @@
-// =============================================
-// RolesController
-// Endpoints para gestionar roles del sistema
-// Todos requieren autenticacion y rol AUDITOR
-// =============================================
-
 import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
@@ -12,37 +7,48 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 
+@ApiTags('Roles')
+@ApiBearerAuth('JWT')
 @Controller('roles')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('AUDITOR')
+@Roles('AUDITOR', 'SUPER_AUDITOR')
 export class RolesController {
     constructor(private rolesService: RolesService) { }
 
-    // POST /gesap/v1/roles
+    @ApiOperation({ summary: 'Crear rol', description: 'Crea un nuevo rol en el sistema.' })
+    @ApiResponse({ status: 201, description: 'Rol creado exitosamente' })
     @Post()
     create(@Body() createRoleDto: CreateRoleDto) {
         return this.rolesService.create(createRoleDto);
     }
 
-    // GET /gesap/v1/roles
+    @ApiOperation({ summary: 'Listar roles', description: 'Retorna todos los roles activos del sistema.' })
+    @ApiResponse({ status: 200, description: 'Lista de roles' })
     @Get()
     findAll() {
         return this.rolesService.findAll();
     }
 
-    // GET /gesap/v1/roles/:id
+    @ApiOperation({ summary: 'Obtener rol por ID' })
+    @ApiParam({ name: 'id', type: Number, description: 'ID del rol' })
+    @ApiResponse({ status: 200, description: 'Datos del rol' })
+    @ApiResponse({ status: 404, description: 'Rol no encontrado' })
     @Get(':id')
     findOne(@Param('id', ParseIntPipe) id: number) {
         return this.rolesService.findOne(id);
     }
 
-    // PUT /gesap/v1/roles/:id
+    @ApiOperation({ summary: 'Actualizar rol' })
+    @ApiParam({ name: 'id', type: Number })
+    @ApiResponse({ status: 200, description: 'Rol actualizado' })
     @Put(':id')
     update(@Param('id', ParseIntPipe) id: number, @Body() updateRoleDto: UpdateRoleDto) {
         return this.rolesService.update(id, updateRoleDto);
     }
 
-    // DELETE /gesap/v1/roles/:id
+    @ApiOperation({ summary: 'Eliminar rol' })
+    @ApiParam({ name: 'id', type: Number })
+    @ApiResponse({ status: 200, description: 'Rol eliminado' })
     @Delete(':id')
     remove(@Param('id', ParseIntPipe) id: number) {
         return this.rolesService.remove(id);

@@ -210,16 +210,25 @@ export class PatientsService {
     // EXPEDIENTES MEDICOS
     // ===========================================
 
-    async createMedicalRecord(doctorId: number, dto: CreateMedicalRecordDto) {
+    async createMedicalRecord(doctorId: number, hospitalId: number | null, dto: CreateMedicalRecordDto) {
         await this.findOne(dto.patientId);
-        return this.prisma.medicalRecord.create({ data: { ...dto, doctorId } });
+        return this.prisma.medicalRecord.create({
+            data: { ...dto, doctorId, hospitalId },
+            include: {
+                doctor: { select: { firstName: true, lastName: true } },
+                hospital: { select: { id: true, code: true, name: true } },
+            },
+        });
     }
 
     async findMedicalRecords(patientId: number) {
         await this.findOne(patientId);
         return this.prisma.medicalRecord.findMany({
             where: { patientId },
-            include: { doctor: { select: { firstName: true, lastName: true, email: true } } },
+            include: {
+                doctor: { select: { firstName: true, lastName: true, email: true } },
+                hospital: { select: { id: true, code: true, name: true } },
+            },
             orderBy: { createdAt: 'desc' },
         });
     }
@@ -228,14 +237,19 @@ export class PatientsService {
     // TRATAMIENTOS
     // ===========================================
 
-    async createTreatment(doctorId: number, dto: CreateTreatmentDto) {
+    async createTreatment(doctorId: number, hospitalId: number | null, dto: CreateTreatmentDto) {
         await this.findOne(dto.patientId);
         return this.prisma.treatment.create({
             data: {
                 ...dto,
                 doctorId,
+                hospitalId,
                 startDate: new Date(dto.startDate),
                 endDate: dto.endDate ? new Date(dto.endDate) : null,
+            },
+            include: {
+                doctor: { select: { firstName: true, lastName: true } },
+                hospital: { select: { id: true, code: true, name: true } },
             },
         });
     }
@@ -244,7 +258,10 @@ export class PatientsService {
         await this.findOne(patientId);
         return this.prisma.treatment.findMany({
             where: { patientId, isActive: true },
-            include: { doctor: { select: { firstName: true, lastName: true } } },
+            include: {
+                doctor: { select: { firstName: true, lastName: true } },
+                hospital: { select: { id: true, code: true, name: true } },
+            },
             orderBy: { startDate: 'desc' },
         });
     }

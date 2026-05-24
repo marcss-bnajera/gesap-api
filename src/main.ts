@@ -6,6 +6,7 @@
 
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -35,9 +36,31 @@ async function bootstrap() {
         credentials: true,
     });
 
+    const swaggerConfig = new DocumentBuilder()
+        .setTitle('GESAP API')
+        .setDescription('API principal del Sistema de Gestión de Atención a Pacientes (MSPAS Guatemala). Gestiona pacientes, usuarios, emergencias, roles y más.')
+        .setVersion('1.0')
+        .addBearerAuth(
+            { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' },
+            'JWT',
+        )
+        .addTag('Auth', 'Autenticación y perfil')
+        .addTag('Users', 'Gestión de usuarios del sistema')
+        .addTag('Roles', 'Gestión de roles')
+        .addTag('Patients', 'Gestión de pacientes')
+        .addTag('Emergencies', 'Gestión de emergencias prehospitalarias')
+        .addTag('Unidentified Patients', 'Pacientes sin identificar')
+        .build();
+
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('gesap/v1/docs', app, document, {
+        swaggerOptions: { persistAuthorization: true },
+    });
+
     const port = process.env.PORT || 3000;
     await app.listen(port);
     console.log(`GESAP API ejecutandose en http://localhost:${port}/gesap/v1`);
+    console.log(`Swagger disponible en http://localhost:${port}/gesap/v1/docs`);
 }
 
 bootstrap();
