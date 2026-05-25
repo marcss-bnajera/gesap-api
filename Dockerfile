@@ -18,4 +18,4 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 
 EXPOSE 3000
-CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node dist/src/main"]
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node_modules/.bin/ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts && node dist/src/main"]
