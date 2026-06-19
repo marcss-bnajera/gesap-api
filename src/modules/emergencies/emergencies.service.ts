@@ -8,6 +8,7 @@ import { CreateEmergencyDto } from './dto/create-emergency.dto';
 import { UpdateEmergencyDto } from './dto/update-emergency.dto';
 import { CompleteEmergencyDto } from './dto/complete-emergency.dto';
 import { FilterEmergenciesDto } from './dto/filter-emergencies.dto';
+import { UserEventsGateway } from '../../events/user-events.gateway';
 
 // Include estándar para retornar emergencias con sus relaciones
 const EMERGENCY_INCLUDE = {
@@ -27,7 +28,10 @@ const EMERGENCY_INCLUDE = {
 
 @Injectable()
 export class EmergenciesService {
-    constructor(private prisma: PrismaService) {}
+    constructor(
+        private prisma: PrismaService,
+        private eventsGateway: UserEventsGateway,
+    ) {}
 
     async create(dto: CreateEmergencyDto, currentUser: { id: number }) {
         // Exactamente uno de los dos debe estar presente
@@ -68,7 +72,7 @@ export class EmergenciesService {
             if (!up) throw new NotFoundException(`No existe el paciente no identificado con ID ${dto.unidentifiedPatientId}`);
         }
 
-        return this.prisma.emergency.create({
+        const emergency = await this.prisma.emergency.create({
             data: {
                 patientId: dto.patientId,
                 unidentifiedPatientId: dto.unidentifiedPatientId,
@@ -82,6 +86,21 @@ export class EmergenciesService {
             },
             include: EMERGENCY_INCLUDE,
         });
+
+        // Notificar en tiempo real a los ASISTENTE_RECEPCION_CLINICA del hospital destino
+        const patientName = emergency.patient
+            ? `${emergency.patient.firstName} ${emergency.patient.firstLastName}`
+            : 'Paciente no identificado';
+
+        this.eventsGateway.notifyNewEmergency(emergency.hospitalDestinationId, {
+            id: emergency.id,
+            patientName,
+            hospitalName: emergency.hospitalDestination.name,
+            status: emergency.status,
+            createdAt: emergency.createdAt.toISOString(),
+        });
+
+        return emergency;
     }
 
     async update(id: number, dto: UpdateEmergencyDto, currentUser: { id: number }) {
@@ -256,6 +275,33 @@ export class EmergenciesService {
             where: {
                 ...hospitalFilter,
                 ...(filters.status && { status: filters.status }),
+            },
+            include: EMERGENCY_INCLUDE,
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
+    async findMine(currentUser: { id: number }) {
+        return this.prisma.emergency.findMany({
+            where: { createdById: currentUser.id },
+            include: EMERGENCY_INCLUDE,
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
+    async findByHospital(
+        hospitalId: number,
+        currentUser: HospitalScopedUser & { id: number },
+        status?: string,
+    ) {
+        if (currentUser.hospitalId !== hospitalId) {
+            throw new ForbiddenException('Solo puedes ver emergencias de tu hospital');
+        }
+
+        return this.prisma.emergency.findMany({
+            where: {
+                hospitalDestinationId: hospitalId,
+                ...(status && { status: status as EmergencyStatus }),
             },
             include: EMERGENCY_INCLUDE,
             orderBy: { createdAt: 'desc' },

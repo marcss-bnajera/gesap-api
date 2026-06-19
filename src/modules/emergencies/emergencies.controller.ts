@@ -64,6 +64,28 @@ export class EmergenciesController {
         return this.service.findPendingByHospital(hospitalId, currentUser);
     }
 
+    @ApiOperation({ summary: 'Listar mis emergencias creadas', description: 'ASISTENTE_PREHOSPITALARIO obtiene todas las emergencias que él mismo ha creado.' })
+    @ApiResponse({ status: 200, description: 'Emergencias creadas por el usuario autenticado' })
+    @Get('mine')
+    @Roles('ASISTENTE_PREHOSPITALARIO')
+    findMine(@CurrentUser() currentUser: AuthUser) {
+        return this.service.findMine(currentUser);
+    }
+
+    @ApiOperation({ summary: 'Listar todas las emergencias de un hospital', description: 'ASISTENTE_RECEPCION_CLINICA obtiene todas las emergencias (cualquier estado) de su hospital.' })
+    @ApiParam({ name: 'hospitalId', type: Number })
+    @ApiQuery({ name: 'status', required: false, description: 'Filtrar por estado (PENDING, IN_PROGRESS, COMPLETED)' })
+    @ApiResponse({ status: 200, description: 'Emergencias del hospital' })
+    @Get('hospital/:hospitalId')
+    @Roles('ASISTENTE_RECEPCION_CLINICA')
+    findByHospital(
+        @Param('hospitalId', ParseIntPipe) hospitalId: number,
+        @Query('status') status: string | undefined,
+        @CurrentUser() currentUser: AuthUser,
+    ) {
+        return this.service.findByHospital(hospitalId, currentUser, status);
+    }
+
     @ApiOperation({ summary: 'Obtener emergencia por ID' })
     @ApiParam({ name: 'id', type: Number })
     @ApiResponse({ status: 200, description: 'Datos completos de la emergencia' })
