@@ -95,6 +95,22 @@ model LoginSession {
   @@map("login_sessions")
 }
 
+// ---- AUDIT LOGS (tabla compartida con gesap-auditor, ya existe en BD) ----
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  userEmail  String   @map("user_email") @db.VarChar(100)
+  action     String   @db.VarChar(50)
+  entity     String   @db.VarChar(50)
+  entityId   Int?     @map("entity_id")
+  details    Json?
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  hospitalId Int?     @map("hospital_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
+
 // ---- PACIENTES ----
 // Nombre completo segun formato guatemalteco: hasta 3 nombres y 2 apellidos
 model Patient {
