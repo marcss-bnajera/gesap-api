@@ -12,6 +12,9 @@ import { AppModule } from './app.module';
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 
+    // Confiar en el proxy inverso para obtener la IP real del cliente
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
     // Prefijo global para todas las rutas: /gesap/v1/...
     app.setGlobalPrefix('gesap/v1');
 
@@ -29,12 +32,7 @@ async function bootstrap() {
         }),
     );
 
-    // Habilitar CORS para el portal de pacientes
-    app.enableCors({
-        origin: ['http://localhost:3002'],
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-        credentials: true,
-    });
+    app.enableCors({ origin: '*' });
 
     const swaggerConfig = new DocumentBuilder()
         .setTitle('GESAP API')
