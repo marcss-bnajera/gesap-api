@@ -141,28 +141,30 @@ async function main() {
     const hospitalSJD = await prisma.hospital.findUnique({ where: { code: 'HSJD' } });
 
     if (superAuditorRole) {
+        const pwSuperAuditor = await bcrypt.hash('GESAP2026!', 10);
         await prisma.user.upsert({
             where: { email: 'superauditor@gesap.gt' },
-            update: {},
+            update: { password: pwSuperAuditor },
             create: {
                 email: 'superauditor@gesap.gt',
-                password: await bcrypt.hash('GESAP2024!', 10),
+                password: pwSuperAuditor,
                 firstName: 'Super',
                 lastName: 'Auditor',
                 roleId: superAuditorRole.id,
                 isActive: true,
             },
         });
-        console.log('Usuario super auditor: superauditor@gesap.gt / GESAP2024!');
+        console.log('Usuario super auditor: superauditor@gesap.gt / GESAP2026!');
     }
 
     if (auditorRole && hospitalSJD) {
+        const pwAuditor = await bcrypt.hash('GESAP2026!', 10);
         await prisma.user.upsert({
             where: { email: 'auditor@gesap.gt' },
-            update: {},
+            update: { password: pwAuditor },
             create: {
                 email: 'auditor@gesap.gt',
-                password: await bcrypt.hash('GESAP2024!', 10),
+                password: pwAuditor,
                 firstName: 'Administrador',
                 lastName: 'GESAP',
                 roleId: auditorRole.id,
@@ -170,16 +172,17 @@ async function main() {
                 isActive: true,
             },
         });
-        console.log('Usuario auditor: auditor@gesap.gt / GESAP2024! (HSJD)');
+        console.log('Usuario auditor: auditor@gesap.gt / GESAP2026! (HSJD)');
     }
 
     if (doctorRole && hospitalSJD) {
+        const pwDoctor = await bcrypt.hash('Doctor2026!', 10);
         await prisma.user.upsert({
             where: { email: 'dr.lopez@gesap.gt' },
-            update: {},
+            update: { password: pwDoctor },
             create: {
                 email: 'dr.lopez@gesap.gt',
-                password: await bcrypt.hash('Doctor2024!', 10),
+                password: pwDoctor,
                 firstName: 'Carlos',
                 lastName: 'Lopez',
                 roleId: doctorRole.id,
@@ -187,7 +190,49 @@ async function main() {
                 isActive: true,
             },
         });
-        console.log('Usuario doctor: dr.lopez@gesap.gt / Doctor2024! (HSJD)');
+        console.log('Usuario doctor: dr.lopez@gesap.gt / Doctor2026! (HSJD)');
+    }
+
+    // Asistente prehospitalario
+    const preRole = await prisma.role.findUnique({ where: { name: 'ASISTENTE_PREHOSPITALARIO' } });
+    if (preRole && hospitalSJD) {
+        const pwPre = await bcrypt.hash('Asistente2026!', 12);
+        await prisma.user.upsert({
+            where: { email: 'asistente.pre@gesap.gt' },
+            update: { password: pwPre },
+            create: {
+                email: 'asistente.pre@gesap.gt',
+                password: pwPre,
+                firstName: 'Roberto',
+                lastName: 'Mendez',
+                roleId: preRole.id,
+                hospitalId: null,
+                fleetId: 'FLOTA-01',
+                isActive: true,
+            },
+        });
+        console.log('Usuario asistente pre: asistente.pre@gesap.gt / Asistente2026! (FLOTA-01)');
+    }
+
+    // Asistente recepción clínica
+    const recRole = await prisma.role.findUnique({ where: { name: 'ASISTENTE_RECEPCION_CLINICA' } });
+    if (recRole && hospitalSJD) {
+        const pwRec = await bcrypt.hash('Asistente2026!', 12);
+        await prisma.user.upsert({
+            where: { email: 'asistente.rec@gesap.gt' },
+            update: { password: pwRec },
+            create: {
+                email: 'asistente.rec@gesap.gt',
+                password: pwRec,
+                firstName: 'Claudia',
+                lastName: 'Ramirez',
+                roleId: recRole.id,
+                hospitalId: hospitalSJD.id,
+                availabilityStatus: 'AVAILABLE',
+                isActive: true,
+            },
+        });
+        console.log('Usuario asistente rec: asistente.rec@gesap.gt / Asistente2026! (HSJD)');
     }
 
     // ---- 5 PACIENTES DE PRUEBA ----
