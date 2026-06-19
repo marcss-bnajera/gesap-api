@@ -14,10 +14,12 @@ import { EmergenciesModule } from './modules/emergencies/emergencies.module';
 import { UnidentifiedPatientsModule } from './modules/unidentified-patients/unidentified-patients.module';
 import { HospitalsModule } from './hospitals/hospitals.module';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
+import { EventsModule } from './events/events.module';
 
 @Module({
     imports: [
         PrismaModule,
+        EventsModule,
         AuthModule,
         RolesModule,
         UsersModule,
