@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import type { Request } from 'express';
 
 @Injectable()
 export class AuthService {
@@ -16,43 +17,64 @@ export class AuthService {
         private jwtService: JwtService,
     ) { }
 
-    // Iniciar sesion: valida credenciales y retorna token JWT
-    async login(loginDto: LoginDto) {
+    async login(loginDto: LoginDto, req?: Request) {
         const { email, password } = loginDto;
 
-        // Buscar usuario por email incluyendo su rol
         const user = await this.prisma.user.findUnique({
             where: { email },
             include: { role: true },
         });
 
-        if (!user) {
-            throw new UnauthorizedException('Credenciales incorrectas');
-        }
+        if (!user) throw new UnauthorizedException('Credenciales incorrectas');
+        if (!user.isActive) throw new UnauthorizedException('Tu cuenta esta desactivada, contacta al administrador');
 
-        if (!user.isActive) {
-            throw new UnauthorizedException('Tu cuenta esta desactivada, contacta al administrador');
-        }
-
-        // Comparar la contrasena enviada con la almacenada (hash bcrypt)
         const passwordValid = await bcrypt.compare(password, user.password);
+        if (!passwordValid) throw new UnauthorizedException('Credenciales incorrectas');
 
-        if (!passwordValid) {
-            throw new UnauthorizedException('Credenciales incorrectas');
-        }
-
-        // Crear el payload del token
         const payload = { sub: user.id, email: user.email };
+        const token = this.jwtService.sign(payload);
+
+        // Registrar sesion de login: upsert (una sesion activa por usuario)
+        try {
+            // CF-Connecting-IP (Cloudflare Tunnel) → x-forwarded-for → req.ip
+            const cfIp = req?.headers?.['cf-connecting-ip'] as string | undefined;
+            const forwarded = req?.headers?.['x-forwarded-for'] as string | undefined;
+            const rawIp = cfIp?.trim() ?? (forwarded ? forwarded.split(',')[0].trim() : (req?.ip ?? null));
+            const ip = rawIp?.startsWith('::ffff:') ? rawIp.slice(7) : rawIp ?? null;
+            const ua = req?.headers['user-agent'] ?? null;
+            const existing = await this.prisma.loginSession.findFirst({
+                where: { userId: user.id, isActive: true },
+            });
+            if (existing) {
+                await this.prisma.loginSession.update({
+                    where: { id: existing.id },
+                    data: { token, ipAddress: ip, userAgent: ua, lastActiveAt: new Date() },
+                });
+            } else {
+                await this.prisma.loginSession.create({
+                    data: {
+                        userId: user.id,
+                        token,
+                        hospitalId: user.hospitalId ?? null,
+                        ipAddress: ip,
+                        userAgent: ua,
+                    },
+                });
+            }
+        } catch {
+            // best-effort
+        }
 
         return {
             message: 'Login exitoso',
-            token: this.jwtService.sign(payload),
+            token,
             user: {
                 id: user.id,
                 email: user.email,
                 firstName: user.firstName,
                 lastName: user.lastName,
                 role: user.role.name,
+                hospitalId: user.hospitalId,
             },
         };
     }

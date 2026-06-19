@@ -1,5 +1,6 @@
-import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -14,8 +15,8 @@ export class AuthController {
     @ApiResponse({ status: 200, description: 'Login exitoso — retorna access_token' })
     @ApiResponse({ status: 401, description: 'Credenciales incorrectas' })
     @Post('login')
-    login(@Body() loginDto: LoginDto) {
-        return this.authService.login(loginDto);
+    login(@Body() loginDto: LoginDto, @Req() req: Request) {
+        return this.authService.login(loginDto, req);
     }
 
     @ApiOperation({ summary: 'Ver perfil autenticado', description: 'Retorna los datos del usuario autenticado según el JWT.' })
