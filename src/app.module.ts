@@ -12,6 +12,7 @@ import { UsersModule } from './users/users.module';
 import { PatientsModule } from './patients/patients.module';
 import { EmergenciesModule } from './modules/emergencies/emergencies.module';
 import { UnidentifiedPatientsModule } from './modules/unidentified-patients/unidentified-patients.module';
+import { HospitalsModule } from './hospitals/hospitals.module';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 
 @Module({
@@ -23,6 +24,7 @@ import { AuditInterceptor } from './common/interceptors/audit.interceptor';
         PatientsModule,
         EmergenciesModule,
         UnidentifiedPatientsModule,
+        HospitalsModule,
     ],
     providers: [
         { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
